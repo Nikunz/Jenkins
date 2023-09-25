@@ -1,0 +1,56 @@
+pipeline{
+    agent {label 'slave'}
+    tools{
+        maven 'maven-3.9'
+    }
+    stages{
+        stage('Git Checkout'){
+            steps{
+               git url:'https://github.com/Nikunz/simple-app.git',branch: 'main'
+            }
+        }
+        stage('Build Maven Application'){
+            steps{
+               sh 'mvn clean package'
+            }
+        }
+        stage('Generate sonarqube-analysis'){
+            steps{
+                withSonarQubeEnv(installationName: 'sonarqube-8', credentialsId: 'jenkinssonartoken') {
+                    sh 'mvn sonar:sonar'
+                }
+            }
+        }
+        stage('Upload War file to nexus'){
+            steps{
+                nexusArtifactUploader artifacts: [
+                    [
+                        artifactId: 'NikunzApp',
+                        classifier: '', 
+                        file: 'target/NikunzApp.war', 
+                        type: 'war'
+                        ]
+                        ],
+                credentialsId: 'nexus-credentials',
+                groupId: 'in.javahome',
+                nexusUrl: '44.201.157.97:8081',
+                nexusVersion: 'nexus3',
+                protocol: 'http',
+                repository: 'NikunzApp',
+                version: '0.1'
+            }
+        }
+        stage('Deploy War file to Tomcat'){
+            steps{
+                sshagent(['tomcat-credentials'])    {
+                    sh """
+                      scp -o StrictHostkeyChecking=no target/*.war ubuntu@44.210.123.178:/opt/tomcat-9/webapps
+                      ssh -o StrictHostkeyChecking=no ubuntu@44.210.123.178 /opt/tomcat-9/bin/shutdown.sh
+                      ssh -o StrictHostkeyChecking=no ubuntu@44.210.123.178 /opt/tomcat-9/bin/startup.sh
+                  
+                    """
+               }
+            }
+        }    
+    }
+}
