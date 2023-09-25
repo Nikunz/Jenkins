@@ -1,0 +1,6 @@
+#for installing jenkins on master and slave
+sudo apt-get install jenkins
+
+#for installing java on master and slave
+#do this with root permissions
+sudo apt-get install openjdk-11-jdk
